@@ -102,12 +102,24 @@ int main() {
             // - Тип устройства (видеокарта/процессор/что-то странное)
             cl_device_type deviceType;
             OCL_SAFE_CALL(clGetDeviceInfo(device, CL_DEVICE_TYPE, sizeof(cl_device_type), &deviceType, nullptr));
-            std::cout << "    Device type: " << deviceType << std::endl;
+            std::cout << "    Device type: ";
+            switch (deviceType) {
+                case CL_DEVICE_TYPE_CPU:
+                    std::cout << "CPU";
+                    break;
+                case CL_DEVICE_TYPE_CPU:
+                    std::cout << "GPU";
+                    break;
+                default:
+                    std::cout << "not CPU & not GPU";
+                    break;
+            }
+            std::cout << std::endl;
 
             // - Размер памяти устройства в мегабайтах
             cl_ulong deviceMemorySize = 0;
             OCL_SAFE_CALL(clGetDeviceInfo(device, CL_DEVICE_GLOBAL_MEM_SIZE, sizeof(cl_ulong), &deviceMemorySize, nullptr));
-            std::cout << "    Device memory: " << deviceMemorySize << std::endl;
+            std::cout << "    Device memory: " << (deviceMemorySize / 1024 / 1024) << std::endl;
 
             // - Еще пару или более свойств устройства, которые вам покажутся наиболее интересными
             cl_bool deviceAvaliable;
