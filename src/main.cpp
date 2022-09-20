@@ -107,7 +107,7 @@ int main() {
                 case CL_DEVICE_TYPE_CPU:
                     std::cout << "CPU";
                     break;
-                case CL_DEVICE_TYPE_CPU:
+                case CL_DEVICE_TYPE_GPU:
                     std::cout << "GPU";
                     break;
                 default:
