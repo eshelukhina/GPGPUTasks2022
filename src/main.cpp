@@ -3,7 +3,6 @@
 #include <libutils/fast_random.h>
 #include <libutils/timer.h>
 
-#include <cassert>
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -16,36 +15,6 @@ std::string to_string(T value) {
     std::ostringstream ss;
     ss << value;
     return ss.str();
-}
-
-void errReleaseContext(cl_int error) {
-    if (error != CL_SUCCESS) {
-        std::cout << "Error release context with exit code: " << error << std::endl;
-    }
-}
-
-void errReleaseQueue(cl_int error) {
-    if (error != CL_SUCCESS) {
-        std::cout << "Error release queue with exit code: " << error << std::endl;
-    }
-}
-
-void errReleaseBuffer(cl_int error) {
-    if (error != CL_SUCCESS) {
-        std::cout << "Error release buffer with exit code: " << error << std::endl;
-    }
-}
-
-void errReleaseProgram(cl_int error) {
-    if (error != CL_SUCCESS) {
-        std::cout << "Error release program with exit code: " << error << std::endl;
-    }
-}
-
-void errReleaseKernel(cl_int error) {
-    if (error != CL_SUCCESS) {
-        std::cout << "Error release kernel with exit code: " << error << std::endl;
-    }
 }
 
 void reportError(cl_int err, const std::string &filename, int line) {
@@ -108,25 +77,7 @@ int main() {
 
     cl_int errorCreateContext = CL_SUCCESS;
     cl_context context = clCreateContext(nullptr, 1, &device, nullptr, nullptr, &errorCreateContext);
-
-    if (errorCreateContext != CL_SUCCESS) {
-        cl_int errorReleaseContext = clReleaseContext(context);
-        errReleaseContext(errorReleaseContext);
-        switch (errorCreateContext) {
-            case CL_INVALID_VALUE:
-                std::cout << "CL_INVALID_VALUE" << std::endl;
-                break;
-            case CL_DEVICE_NOT_AVAILABLE:
-                std::cout << "CL_DEVICE_NOT_AVAILABLE" << std::endl;
-                break;
-            case CL_INVALID_OPERATION:
-                std::cout << "CL_INVALID_OPERATION" << std::endl;
-                break;
-            default:
-                std::cout << "Error create context with exit code: " << errorCreateContext << std::endl;
-                break;
-        }
-    }
+    OCL_SAFE_CALL(errorCreateContext);
 
     // TODO 3 Создайте очередь выполняемых команд в рамках выбранного контекста и устройства
     // См. документацию https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/ -> OpenCL Runtime -> Runtime APIs -> Command Queues -> clCreateCommandQueue
@@ -134,15 +85,7 @@ int main() {
     // И хорошо бы сразу добавить в конце clReleaseQueue (не забывайте освобождать ресурсы)
     cl_int errorCreateQueue = CL_SUCCESS;
     cl_command_queue commandQueue = clCreateCommandQueue(context, device, 0, &errorCreateQueue);
-    if (errorCreateQueue != CL_SUCCESS) {
-        cl_int errorReleaseQueue = clReleaseCommandQueue(commandQueue);
-        errReleaseQueue(errorReleaseQueue);
-
-        cl_int errorReleaseContext = clReleaseContext(context);
-        errReleaseContext(errorReleaseContext);
-
-        std::cout << "Error create queue with exit code: " << errorCreateQueue << std::endl;
-    }
+    OCL_SAFE_CALL(errorCreateQueue);
 
     cl_command_queue_properties commandQueueProperties;
     OCL_SAFE_CALL(clGetCommandQueueInfo(
@@ -174,57 +117,15 @@ int main() {
     cl_int errorCreateBuffer = CL_SUCCESS;
     cl_mem memA = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, n * sizeof(float), as.data(),
                                  &errorCreateBuffer);
-    if (errorCreateBuffer != CL_SUCCESS) {
-        cl_int errorReleaseBuffer = clReleaseMemObject(memA);
-        errReleaseBuffer(errorReleaseBuffer);
-
-        cl_int errorReleaseQueue = clReleaseCommandQueue(commandQueue);
-        errReleaseQueue(errorReleaseQueue);
-
-        cl_int errorReleaseContext = clReleaseContext(context);
-        errReleaseContext(errorReleaseContext);
-
-        std::cout << "Error create buffer A with exit code: " << errorCreateBuffer << std::endl;
-    }
+    OCL_SAFE_CALL(errorCreateBuffer);
 
     cl_mem memB = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, n * sizeof(float), bs.data(),
                                  &errorCreateBuffer);
-    if (errorCreateBuffer != CL_SUCCESS) {
-        cl_int errorReleaseBuffer = clReleaseMemObject(memB);
-        errReleaseBuffer(errorReleaseBuffer);
+    OCL_SAFE_CALL(errorCreateBuffer);
 
-        errorReleaseBuffer = clReleaseMemObject(memA);
-        errReleaseBuffer(errorReleaseBuffer);
-
-        cl_int errorReleaseQueue = clReleaseCommandQueue(commandQueue);
-        errReleaseQueue(errorReleaseQueue);
-
-        cl_int errorReleaseContext = clReleaseContext(context);
-        errReleaseContext(errorReleaseContext);
-
-        std::cout << "Error create buffer B with exit code: " << errorCreateBuffer << std::endl;
-    }
-
-    cl_mem memC = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, n * sizeof(float), cs.data(),
+    cl_mem memC = clCreateBuffer(context, CL_MEM_WRITE_ONLY | CL_MEM_COPY_HOST_PTR, n * sizeof(float), cs.data(),
                                  &errorCreateBuffer);
-    if (errorCreateBuffer != CL_SUCCESS) {
-        cl_int errorReleaseBuffer = clReleaseMemObject(memC);
-        errReleaseBuffer(errorReleaseBuffer);
-
-        errorReleaseBuffer = clReleaseMemObject(memB);
-        errReleaseBuffer(errorReleaseBuffer);
-
-        errorReleaseBuffer = clReleaseMemObject(memA);
-        errReleaseBuffer(errorReleaseBuffer);
-
-        cl_int errorReleaseQueue = clReleaseCommandQueue(commandQueue);
-        errReleaseQueue(errorReleaseQueue);
-
-        cl_int errorReleaseContext = clReleaseContext(context);
-        errReleaseContext(errorReleaseContext);
-
-        std::cout << "Error create buffer C with exit code: " << errorCreateBuffer << std::endl;
-    }
+    OCL_SAFE_CALL(errorCreateBuffer);
 
     // TODO 6 Выполните TODO 5 (реализуйте кернел в src/cl/aplusb.cl)
     // затем убедитесь, что выходит загрузить его с диска (убедитесь что Working directory выставлена правильно - см. описание задания),
@@ -247,54 +148,13 @@ int main() {
     const char *sourceCode = kernel_sources.data();
     const size_t codeLen = kernel_sources.length();
     cl_program program = clCreateProgramWithSource(context, 1, &sourceCode, &codeLen, &error);
-
-    if (error != CL_SUCCESS) {
-        cl_int errorReleaseProgram = clReleaseProgram(program);
-        errReleaseProgram(errorReleaseProgram);
-
-        cl_int errorReleaseBuffer = clReleaseMemObject(memC);
-        errReleaseBuffer(errorReleaseBuffer);
-
-        errorReleaseBuffer = clReleaseMemObject(memB);
-        errReleaseBuffer(errorReleaseBuffer);
-
-        errorReleaseBuffer = clReleaseMemObject(memA);
-        errReleaseBuffer(errorReleaseBuffer);
-
-        cl_int errorReleaseQueue = clReleaseCommandQueue(commandQueue);
-        errReleaseQueue(errorReleaseQueue);
-
-        cl_int errorReleaseContext = clReleaseContext(context);
-        errReleaseContext(errorReleaseContext);
-
-        std::cout << "Error create program with exit code: " << error << std::endl;
-    }
+    OCL_SAFE_CALL(error);
 
     // TODO 8 Теперь скомпилируйте программу и напечатайте в консоль лог компиляции
     // см. clBuildProgram
 
     cl_int build = clBuildProgram(program, 1, &device, nullptr, nullptr, nullptr);
-    if (build != CL_SUCCESS) {
-        cl_int errorReleaseProgram = clReleaseProgram(program);
-        errReleaseProgram(errorReleaseProgram);
-
-        cl_int errorReleaseBuffer = clReleaseMemObject(memC);
-        errReleaseBuffer(errorReleaseBuffer);
-
-        errorReleaseBuffer = clReleaseMemObject(memB);
-        errReleaseBuffer(errorReleaseBuffer);
-
-        errorReleaseBuffer = clReleaseMemObject(memA);
-        errReleaseBuffer(errorReleaseBuffer);
-
-        cl_int errorReleaseQueue = clReleaseCommandQueue(commandQueue);
-        errReleaseQueue(errorReleaseQueue);
-
-        cl_int errorReleaseContext = clReleaseContext(context);
-        errReleaseContext(errorReleaseContext);
-
-        std::cout << "Error build program with exit code: " << build << std::endl;
-    }
+    OCL_SAFE_CALL(build);
 
     // А также напечатайте лог компиляции (он будет очень полезен, если в кернеле есть синтаксические ошибки - т.е. когда clBuildProgram вернет CL_BUILD_PROGRAM_FAILURE)
     // Обратите внимание, что при компиляции на процессоре через Intel OpenCL драйвер - в логе указывается, какой ширины векторизацию получилось выполнить для кернела
@@ -313,30 +173,7 @@ int main() {
     // см. подходящую функцию в Runtime APIs -> Program Objects -> Kernel Objects
 
     cl_kernel kernel = clCreateKernel(program, "aplusb", &error);
-    if (error != CL_SUCCESS) {
-        cl_int errorReleaseKernel = clReleaseKernel(kernel);
-        errReleaseKernel(errorReleaseKernel);
-
-        cl_int errorReleaseProgram = clReleaseProgram(program);
-        errReleaseProgram(errorReleaseProgram);
-
-        cl_int errorReleaseBuffer = clReleaseMemObject(memC);
-        errReleaseBuffer(errorReleaseBuffer);
-
-        errorReleaseBuffer = clReleaseMemObject(memB);
-        errReleaseBuffer(errorReleaseBuffer);
-
-        errorReleaseBuffer = clReleaseMemObject(memA);
-        errReleaseBuffer(errorReleaseBuffer);
-
-        cl_int errorReleaseQueue = clReleaseCommandQueue(commandQueue);
-        errReleaseQueue(errorReleaseQueue);
-
-        cl_int errorReleaseContext = clReleaseContext(context);
-        errReleaseContext(errorReleaseContext);
-
-        std::cout << "Error create kernel with exit code: " << error << std::endl;
-    }
+    OCL_SAFE_CALL(error);
     // TODO 10 Выставите все аргументы в кернеле через clSetKernelArg (as_gpu, bs_gpu, cs_gpu и число значений, убедитесь, что тип количества элементов такой же в кернеле)
     {
         unsigned int i = 0;
@@ -388,7 +225,7 @@ int main() {
         // - Обращений к видеопамяти 2*n*sizeof(float) байт на чтение и 1*n*sizeof(float) байт на запись, т.е. итого 3*n*sizeof(float) байт
         // - В гигабайте 1024*1024*1024 байт
         // - Среднее время выполнения кернела равно t.lapAvg() секунд
-        std::cout << "VRAM bandwidth: " << 3.0 * n + sizeof(float) / (1024 * 1024 * 1024) / t.lapAvg() << " GB/s"
+        std::cout << "VRAM bandwidth: " << 3.0 * n * sizeof(float) / (1024 * 1024 * 1024) / t.lapAvg() << " GB/s"
                   << std::endl;
     }
 
