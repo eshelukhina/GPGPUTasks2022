@@ -18,9 +18,11 @@ __kernel void sum_cycle(__global const unsigned int* as, __global unsigned int* 
     int global_id = get_global_id(0);
     unsigned int sum = 0;
     for (int i = 0; i < VALUE_PER_WORK_ITEM; i++) {
-        if ((global_id * VALUE_PER_WORK_ITEM + i) < n) {
-            sum += as[global_id * VALUE_PER_WORK_ITEM + i];
+        int ind = global_id * VALUE_PER_WORK_ITEM + i;
+        if (ind >= n) {
+           break;
         }
+        sum += as[ind];
     }
     atomic_add(res, sum);
 }
@@ -32,9 +34,10 @@ __kernel void sum_cycle_coalesced(__global const unsigned int* as, __global unsi
     unsigned int sum = 0;
     for (int i = 0; i < VALUE_PER_WORK_ITEM; ++i) {
         int ind = group_id * local_size * VALUE_PER_WORK_ITEM + i * local_size + local_id;
-        if (ind < n) {
-            sum += as[ind];
+        if (ind >= n) {
+            break;
         }
+        sum += as[ind];
     }
     atomic_add(res, sum);
 }
@@ -44,10 +47,14 @@ __kernel void sum_local_memory(__global const unsigned int* as, __global unsigne
     int local_id = get_local_id(0);
     unsigned int sum = 0;
     __local int local_as[WORK_GROUP_SIZE];
-    local_as[local_id] = as[global_id];
+
+    if (global_id < n) {
+        local_as[local_id] = as[global_id];
+    } else {
+        local_as[local_id] = 0;
+    }
 
     barrier(CLK_LOCAL_MEM_FENCE);
-
     if (local_id == 0) {
         unsigned int sum = 0;
         for (int i = 0; i < WORK_GROUP_SIZE; ++i) {
@@ -62,7 +69,12 @@ __kernel void sum_tree(__global const unsigned int* as, __global unsigned int* r
     int local_id = get_local_id(0);
     unsigned int sum = 0;
     __local int local_as[WORK_GROUP_SIZE];
-    local_as[local_id] = as[global_id];
+
+    if (global_id < n) {
+        local_as[local_id] = as[global_id];
+    } else {
+        local_as[local_id] = 0;
+    }
 
     barrier(CLK_LOCAL_MEM_FENCE);
 
