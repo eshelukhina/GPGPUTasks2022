@@ -10,9 +10,9 @@
 #include <iostream>
 #include <stdexcept>
 
-unsigned int M = 256;
-unsigned int K = 256;
-unsigned int N = 256;
+unsigned int M = 1024;
+unsigned int K = 1024;
+unsigned int N = 1024;
 
 std::vector<float> as(M*K, 0);
 std::vector<float> bs(K*N, 0);
@@ -39,8 +39,11 @@ void gpu_matrix_multiplication(const std::string& clMatrixMultName, std::size_t 
     cs_gpu.readN(cs.data(), M*N);
     double errorAvg = 0.0;
     for (int i = 0; i < M * N; ++i) {
-        if (cs[i] != 0.0 && cs_cpu_reference[i] != 0.0) {
-            errorAvg += fabs(cs[i] - cs_cpu_reference[i]);
+        double a = cs[i];
+        double b = cs_cpu_reference[i];
+        if (a != 0.0 && b != 0.0) {
+            double diff = fabs(a - b) / std::max(fabs(a), fabs(b));
+            errorAvg += diff;
         }
     }
     errorAvg /= (M * N);
