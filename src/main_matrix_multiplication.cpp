@@ -96,7 +96,11 @@ int main(int argc, char **argv)
     as_gpu.writeN(as.data(), M*K);
     bs_gpu.writeN(bs.data(), K*N);
 
-    gpu_matrix_multiplication("matrix_multiplication1", benchmarkingIters, gpu::WorkSize(16, 16, N, M));
-    gpu_matrix_multiplication("matrix_multiplication2", benchmarkingIters, gpu::WorkSize(4, 16, N / 4, M));
+    unsigned int work_group_size = 16;
+    unsigned int WPT = 4;
+    unsigned int global_work_size_x = (M + work_group_size - 1) / work_group_size * work_group_size;
+    unsigned int global_work_size_y = (K + work_group_size - 1) / work_group_size * work_group_size;
+    gpu_matrix_multiplication("matrix_multiplication1", benchmarkingIters, gpu::WorkSize(work_group_size, work_group_size, global_work_size_x, global_work_size_y));
+    gpu_matrix_multiplication("matrix_multiplication2", benchmarkingIters, gpu::WorkSize(work_group_size / WPT, work_group_size, global_work_size_x / WPT, global_work_size_y));
     return 0;
 }
