@@ -91,8 +91,8 @@ int main(int argc, char **argv) {
 
         const size_t gpuBenchmarkIters = 100;
         gpu_sum(device, as, "sum_baseline", gpuBenchmarkIters, globalWorkSize, reference_sum);
-        gpu_sum(device, as, "sum_cycle", gpuBenchmarkIters, globalWorkSize, reference_sum);
-        gpu_sum(device, as, "sum_cycle_coalesced", gpuBenchmarkIters, globalWorkSize, reference_sum);
+        gpu_sum(device, as, "sum_cycle", gpuBenchmarkIters, globalWorkSize / 32, reference_sum);
+        gpu_sum(device, as, "sum_cycle_coalesced", gpuBenchmarkIters, globalWorkSize / 32, reference_sum);
         gpu_sum(device, as, "sum_local_memory", gpuBenchmarkIters, globalWorkSize, reference_sum);
         gpu_sum(device, as, "sum_tree", gpuBenchmarkIters, globalWorkSize, reference_sum);
     }
