@@ -77,7 +77,48 @@ int main(int argc, char **argv)
 		}
 
 		{
-			// TODO: implement on OpenCL
-		}
+            std::vector<uint> result(n);
+            gpu::Device device = gpu::chooseGPUDevice(argc, argv);
+
+            gpu::Context context;
+            context.init(device.device_id_opencl);
+            context.activate();
+
+            gpu::gpu_mem_32u as_gpu, bs_gpu, cs_gpu;
+            as_gpu.resizeN(n);
+            bs_gpu.resizeN(n);
+            cs_gpu.resizeN(n);
+
+            ocl::Kernel prefix_sum(prefix_sum_kernel, prefix_sum_kernel_length, "prefix_sum");
+            ocl::Kernel reduce_sum(prefix_sum_kernel, prefix_sum_kernel_length, "reduce_sum");
+
+            prefix_sum.compile();
+            reduce_sum.compile();
+
+            timer t;
+            for (int iter = 0; iter < benchmarkingIters; ++iter) {
+                as_gpu.writeN(as.data(), n);
+
+                t.restart();
+                unsigned int workGroupSize = 256;
+                unsigned int prefix_work_size = (n + workGroupSize - 1) / workGroupSize * workGroupSize;
+                unsigned int reduce_work_size = (n / 2 + workGroupSize - 1) / workGroupSize * workGroupSize;
+
+                for (unsigned int bit = 0; (1 << bit) <= n; bit++) {
+                    prefix_sum.exec(gpu::WorkSize(workGroupSize, prefix_work_size), as_gpu, bs_gpu, bit, n);
+                    reduce_sum.exec(gpu::WorkSize(workGroupSize, reduce_work_size), as_gpu, cs_gpu, n >> (bit + 1));
+                    std::swap(as_gpu, cs_gpu);
+                }
+                t.nextLap();
+            }
+            std::cout << "GPU: " << t.lapAvg() << "+-" << t.lapStd() << " s" << std::endl;
+            std::cout << "GPU: " << (n / 1000.0 / 1000.0) / t.lapAvg() << " millions/s" << std::endl;
+
+            bs_gpu.readN(result.data(), n);
+
+            for (int i = 0; i < n; ++i) {
+                EXPECT_THE_SAME(reference_result[i], result[i], "GPU results should be equal to CPU results!");
+            }
+        }
 	}
 }
