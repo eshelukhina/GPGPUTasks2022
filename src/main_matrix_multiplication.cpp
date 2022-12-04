@@ -14,11 +14,18 @@ unsigned int M = 1024;
 unsigned int K = 1024;
 unsigned int N = 1024;
 
+unsigned int WORK_GROUP_SIZE = 16;
+unsigned int WPT = 4;
+
+unsigned int UPPER_BOUND_K = (K + WORK_GROUP_SIZE - 1) / WORK_GROUP_SIZE * WORK_GROUP_SIZE;
+unsigned int GLOBAL_WORK_SIZE_X = (N + WORK_GROUP_SIZE - 1) / WORK_GROUP_SIZE * WORK_GROUP_SIZE;
+unsigned int GLOBAL_WORK_SIZE_Y = (M + WORK_GROUP_SIZE - 1) / WORK_GROUP_SIZE * WORK_GROUP_SIZE;
+
 std::vector<float> as(M*K, 0);
 std::vector<float> bs(K*N, 0);
 std::vector<float> cs(M*N, 0);
 
-const std::vector<float> cs_cpu_reference = cs;
+std::vector<float> cs_cpu_reference;
 
 gpu::gpu_mem_32f as_gpu, bs_gpu, cs_gpu;
 
@@ -30,7 +37,7 @@ void gpu_matrix_multiplication(const std::string& clMatrixMultName, std::size_t 
 
     timer t;
     for (std::size_t iter = 0; iter < benchmarkingIters; ++iter) {
-        baseline_kernel.exec(workSize, as_gpu, bs_gpu, cs_gpu, M, K, N);
+        baseline_kernel.exec(workSize, as_gpu, bs_gpu, cs_gpu, M, K, N, UPPER_BOUND_K);
         t.nextLap();
     }
     std::cout << clMatrixMultName + ": " << t.lapAvg() << "+-" << t.lapStd() << " s" << std::endl;
@@ -41,7 +48,7 @@ void gpu_matrix_multiplication(const std::string& clMatrixMultName, std::size_t 
     for (int i = 0; i < M * N; ++i) {
         double a = cs[i];
         double b = cs_cpu_reference[i];
-        if (a != 0.0 && b != 0.0) {
+        if (a != 0.0 || b != 0.0) {
             double diff = fabs(a - b) / std::max(fabs(a), fabs(b));
             errorAvg += diff;
         }
@@ -99,11 +106,9 @@ int main(int argc, char **argv)
     as_gpu.writeN(as.data(), M*K);
     bs_gpu.writeN(bs.data(), K*N);
 
-    unsigned int work_group_size = 16;
-    unsigned int WPT = 4;
-    unsigned int global_work_size_x = (M + work_group_size - 1) / work_group_size * work_group_size;
-    unsigned int global_work_size_y = (K + work_group_size - 1) / work_group_size * work_group_size;
-    gpu_matrix_multiplication("matrix_multiplication1", benchmarkingIters, gpu::WorkSize(work_group_size, work_group_size, global_work_size_x, global_work_size_y));
-    gpu_matrix_multiplication("matrix_multiplication2", benchmarkingIters, gpu::WorkSize(work_group_size / WPT, work_group_size, global_work_size_x / WPT, global_work_size_y));
+    cs_cpu_reference = cs;
+
+    gpu_matrix_multiplication("matrix_multiplication1", benchmarkingIters,gpu::WorkSize(WORK_GROUP_SIZE, WORK_GROUP_SIZE, GLOBAL_WORK_SIZE_X, GLOBAL_WORK_SIZE_Y));
+    gpu_matrix_multiplication("matrix_multiplication2", benchmarkingIters,gpu::WorkSize(WORK_GROUP_SIZE, WORK_GROUP_SIZE / WPT, GLOBAL_WORK_SIZE_X,GLOBAL_WORK_SIZE_Y / WPT));
     return 0;
 }
