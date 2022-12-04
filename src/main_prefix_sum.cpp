@@ -98,6 +98,7 @@ int main(int argc, char **argv)
             timer t;
             for (int iter = 0; iter < benchmarkingIters; ++iter) {
                 as_gpu.writeN(as.data(), n);
+                bs_gpu.writeN(std::vector<uint>(n, 0).data(), n);
 
                 t.restart();
                 unsigned int workGroupSize = 256;
@@ -105,20 +106,20 @@ int main(int argc, char **argv)
                 unsigned int reduce_work_size = (n / 2 + workGroupSize - 1) / workGroupSize * workGroupSize;
 
                 for (unsigned int bit = 0; (1 << bit) <= n; bit++) {
-                    prefix_sum.exec(gpu::WorkSize(workGroupSize, prefix_work_size), as_gpu, bs_gpu, bit, n);
+                    prefix_sum.exec(gpu::WorkSize(workGroupSize, prefix_work_size), bs_gpu, as_gpu, bit, n);
                     reduce_sum.exec(gpu::WorkSize(workGroupSize, reduce_work_size), as_gpu, cs_gpu, n >> (bit + 1));
                     std::swap(as_gpu, cs_gpu);
                 }
                 t.nextLap();
+
+                bs_gpu.readN(result.data(), n);
+
+                for (int i = 0; i < n; ++i) {
+                    EXPECT_THE_SAME(reference_result[i], result[i], "GPU results should be equal to CPU results!");
+                }
             }
             std::cout << "GPU: " << t.lapAvg() << "+-" << t.lapStd() << " s" << std::endl;
             std::cout << "GPU: " << (n / 1000.0 / 1000.0) / t.lapAvg() << " millions/s" << std::endl;
-
-            bs_gpu.readN(result.data(), n);
-
-            for (int i = 0; i < n; ++i) {
-                EXPECT_THE_SAME(reference_result[i], result[i], "GPU results should be equal to CPU results!");
-            }
         }
-	}
+    }
 }
