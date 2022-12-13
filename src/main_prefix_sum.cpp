@@ -103,11 +103,13 @@ int main(int argc, char **argv)
                 t.restart();
                 unsigned int workGroupSize = 256;
                 unsigned int prefix_work_size = (n + workGroupSize - 1) / workGroupSize * workGroupSize;
-                unsigned int reduce_work_size = (n / 2 + workGroupSize - 1) / workGroupSize * workGroupSize;
+                unsigned int m = n;
 
                 for (unsigned int bit = 0; (1 << bit) <= n; bit++) {
                     prefix_sum.exec(gpu::WorkSize(workGroupSize, prefix_work_size), bs_gpu, as_gpu, bit, n);
-                    reduce_sum.exec(gpu::WorkSize(workGroupSize, reduce_work_size), as_gpu, cs_gpu, n >> (bit + 1));
+                    m = (m + 1) / 2;
+                    unsigned int reduce_work_size = (m + workGroupSize - 1) / workGroupSize * workGroupSize;
+                    reduce_sum.exec(gpu::WorkSize(workGroupSize, reduce_work_size), as_gpu, cs_gpu, m);
                     std::swap(as_gpu, cs_gpu);
                 }
                 t.nextLap();
